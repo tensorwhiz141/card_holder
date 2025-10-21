@@ -1,0 +1,11 @@
+file,issuer,card_last4,card_type,payment_due_date,total_amount_due
+Axis_Bank_Sample_Statement.pdf,AXIS,1234,,"Date
+20",2999.00
+HDFC_Bank_Sample_Statement.pdf,HDFC,1234,,"Date
+20",2999.00
+ICICI_Bank_Sample_Statement.pdf,ICICI,1234,,"Date
+20",2999.00
+Kotak_Mahindra_Bank_Sample_Statement.pdf,KOTAK,1234,,"Date
+20",2999.00
+SBI_Card_Sample_Statement.pdf,SBI,1234,,"Date
+20",2999.00

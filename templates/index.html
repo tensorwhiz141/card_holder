@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Credit Card Statement Parser</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/script.css" />
+</head>
+<body class="bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-2xl bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-lg">
+    <h1 class="text-2xl font-bold text-slate-800 mb-2">Credit Card Statement Parser</h1>
+    <p class="text-sm text-slate-600 mb-6">Upload a credit card statement (PDF). The parser extracts issuer, card, billing cycle, due date, total due and transactions.</p>
+
+    <form action="/upload" method="post" enctype="multipart/form-data" class="space-y-4">
+      <input type="file" name="file" accept=".pdf" required
+             class="block w-full text-sm text-slate-700 border border-slate-200 rounded-lg cursor-pointer bg-slate-50 p-2"/>
+      <div class="flex gap-3">
+        <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg">Parse PDF</button>
+        <a href="/parse-zip" class="flex-1 text-center bg-slate-100 py-2 rounded-lg text-slate-700">Parse ZIP (API)</a>
+      </div>
+    </form>
+
+    <div class="mt-6 text-xs text-slate-500">
+      <p>Tip: Use the sample PDFs to test. For batch parsing, POST a ZIP file to <code>/parse-zip</code>.</p>
+    </div>
+  </div>
+</body>
+</html>

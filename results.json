@@ -1,0 +1,67 @@
+[
+  {
+    "file": "Axis_Bank_Sample_Statement.pdf",
+    "issuer": "AXIS",
+    "card_last4": "1234",
+    "card_type": null,
+    "billing_cycle": {
+      "start": "2025-10-01",
+      "end": "2025-10-20"
+    },
+    "payment_due_date": "Date\n20",
+    "total_amount_due": "2999.00",
+    "transactions_preview": []
+  },
+  {
+    "file": "HDFC_Bank_Sample_Statement.pdf",
+    "issuer": "HDFC",
+    "card_last4": "1234",
+    "card_type": null,
+    "billing_cycle": {
+      "start": "2025-10-01",
+      "end": "2025-10-20"
+    },
+    "payment_due_date": "Date\n20",
+    "total_amount_due": "2999.00",
+    "transactions_preview": []
+  },
+  {
+    "file": "ICICI_Bank_Sample_Statement.pdf",
+    "issuer": "ICICI",
+    "card_last4": "1234",
+    "card_type": null,
+    "billing_cycle": {
+      "start": "2025-10-01",
+      "end": "2025-10-20"
+    },
+    "payment_due_date": "Date\n20",
+    "total_amount_due": "2999.00",
+    "transactions_preview": []
+  },
+  {
+    "file": "Kotak_Mahindra_Bank_Sample_Statement.pdf",
+    "issuer": "KOTAK",
+    "card_last4": "1234",
+    "card_type": null,
+    "billing_cycle": {
+      "start": "2025-10-01",
+      "end": "2025-10-20"
+    },
+    "payment_due_date": "Date\n20",
+    "total_amount_due": "2999.00",
+    "transactions_preview": []
+  },
+  {
+    "file": "SBI_Card_Sample_Statement.pdf",
+    "issuer": "SBI",
+    "card_last4": "1234",
+    "card_type": null,
+    "billing_cycle": {
+      "start": "2025-10-01",
+      "end": "2025-10-20"
+    },
+    "payment_due_date": "Date\n20",
+    "total_amount_due": "2999.00",
+    "transactions_preview": []
+  }
+]
