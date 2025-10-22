@@ -1,11 +1,19 @@
+#!/usr/bin/env python3
+"""
+Ultra Robust Credit Card Statement Parser (PDF + ZIP)
+-----------------------------------------------------
+- Handles single PDFs or ZIP archives with PDFs
+- Extracts: Issuer, Customer Name, Card Last 4 Digits, Card Type
+- Billing Cycle (unique per bank), Payment Due Date, Total Amount Due
+- Transactions preview (top 20)
+"""
 
-
-import os, re, json, random
+import os, re, json, random, zipfile, tempfile
 from datetime import timedelta
 from dateutil import parser as dateparse
 
 try:
-    import fitz  
+    import fitz  # PyMuPDF
     HAS_FITZ = True
 except Exception:
     HAS_FITZ = False
@@ -16,8 +24,7 @@ try:
 except Exception:
     HAS_PDFPLUMBER = False
 
-
-
+# ------------------- CONFIG -------------------
 ISSUERS = {
     "HDFC": {"keywords": ["hdfc"], "cycle_days": 30},
     "ICICI": {"keywords": ["icici"], "cycle_days": 35},
@@ -36,10 +43,8 @@ RE_NAME_PATTERNS = [
     r"Name\s*[:\-]?\s*([\w\s\.\']{2,60})",
 ]
 
-
-# --------------- HELPERS -----------------
+# ------------------- UTILITIES -------------------
 def extract_text(path):
-    """Extracts clean text from PDF (PyMuPDF → pdfplumber → fallback)"""
     txt = ""
     if HAS_FITZ:
         try:
@@ -62,14 +67,12 @@ def extract_text(path):
     except Exception:
         return ""
 
-
 def clean_text(txt):
     txt = re.sub(r"\r", "\n", txt)
     txt = re.sub(r"(\d+)\s*\n\s*(\d{3}\.\d{2})", r"\1,\2", txt)
     txt = re.sub(r"\s+", " ", txt)
-    txt = re.sub(r"₹\s*₹", "₹", txt)  
+    txt = re.sub(r"₹\s*₹", "₹", txt)
     return txt
-
 
 def detect_issuer(text):
     lower = text.lower()
@@ -77,7 +80,6 @@ def detect_issuer(text):
         if any(k in lower for k in conf["keywords"]):
             return name
     return "UNKNOWN"
-
 
 def find_customer_name(text):
     cleaned = re.sub(r"[\r\n]+", " ", text)
@@ -92,14 +94,12 @@ def find_customer_name(text):
     m2 = re.search(r"\b(Mr\.?|Mrs\.?|Ms\.?)\s+[A-Z][a-zA-Z]+\s+[A-Z][a-zA-Z]+", cleaned)
     return m2.group(0).strip() if m2 else None
 
-
 def find_last4(text):
     for a, b in RE_LAST4.findall(text):
         digits = a or b
         if digits and digits.isdigit() and not (1900 <= int(digits) <= 2100):
             return digits[-4:]
     return None
-
 
 def find_label_value(text, labels):
     lower = text.lower()
@@ -112,14 +112,12 @@ def find_label_value(text, labels):
                 amt = re.sub(r"(₹|Rs\.?|INR|[$€£,])", "", m.group(0), flags=re.IGNORECASE)
                 try:
                     val = float(re.findall(r"\d+\.\d{2}|\d+", amt)[0])
-                    return f"₹{val:,.2f}"
+                    return f"{val:,.2f}"
                 except Exception:
-                    return f"₹{amt.strip()}"
+                    return f"{amt.strip()}"
     return None
 
-
 def find_due_date_near_label(text):
-    """Finds a realistic due date anywhere near likely labels."""
     for lbl in ["payment due date", "due date", "pay by", "payment date"]:
         idx = text.lower().find(lbl)
         if idx != -1:
@@ -131,7 +129,7 @@ def find_due_date_near_label(text):
                         return dt.strftime("%Y-%m-%d")
                 except Exception:
                     pass
-    
+    # fallback: first valid date in document
     for d in RE_DATE.findall(text):
         try:
             dt = dateparse.parse(d, fuzzy=True, dayfirst=True)
@@ -141,25 +139,16 @@ def find_due_date_near_label(text):
             pass
     return None
 
-
 def generate_billing_cycle(issuer, due_date_str):
-    """Generate billing cycle ending on due date with variable length per issuer."""
     if not due_date_str:
         return None
     try:
         due_date = dateparse.parse(due_date_str)
     except Exception:
         return None
-
-    
     days = ISSUERS.get(issuer, {}).get("cycle_days", 30)
-    days = random.randint(max(20, days - 10), min(365, days + 10))
     start_date = due_date - timedelta(days=days)
-    return {
-        "start": start_date.strftime("%Y-%m-%d"),
-        "end": due_date.strftime("%Y-%m-%d"),
-    }
-
+    return {"start": start_date.strftime("%Y-%m-%d"), "end": due_date.strftime("%Y-%m-%d")}
 
 def extract_transactions_simple(text, max_lines=200):
     lines = []
@@ -170,25 +159,17 @@ def extract_transactions_simple(text, max_lines=200):
                 break
     return lines
 
-
-
+# ------------------- PARSING -------------------
 def parse_statement(path):
     txt = clean_text(extract_text(path))
-
     issuer = detect_issuer(txt)
     name = find_customer_name(txt)
     last4 = find_last4(txt)
     due_date = find_due_date_near_label(txt)
     total_due = find_label_value(txt, ["total amount due", "amount due", "total due", "new balance", "amount payable"])
-
-    
     billing = generate_billing_cycle(issuer, due_date)
-
-    
     card_type = next((t for t in ["Platinum","Gold","Classic","Signature","World","Visa","Mastercard","Titanium","Infinite"] if t.lower() in txt.lower()), "N/A")
-
     transactions = extract_transactions_simple(txt)
-
     return {
         "file": os.path.basename(path),
         "issuer": issuer,
@@ -201,10 +182,38 @@ def parse_statement(path):
         "transactions_preview": transactions[:20],
     }
 
+def process_zip(zip_path):
+    results = []
+    with tempfile.TemporaryDirectory() as tmpdir:
+        try:
+            with zipfile.ZipFile(zip_path, "r") as z:
+                z.extractall(tmpdir)
+        except Exception as e:
+            print(f"[ERROR] Could not extract ZIP: {e}")
+            return []
+        for root, _, files in os.walk(tmpdir):
+            for f in files:
+                if f.lower().endswith(".pdf"):
+                    full_path = os.path.join(root, f)
+                    try:
+                        results.append(parse_statement(full_path))
+                    except Exception as e:
+                        print(f"[WARN] Failed to parse {f}: {e}")
+        if not results:
+            print(f"[WARN] No PDF files found inside {zip_path}")
+    return results
 
+# ------------------- CLI -------------------
 if __name__ == "__main__":
     import argparse
     p = argparse.ArgumentParser()
     p.add_argument("--input", required=True)
     args = p.parse_args()
-    print(json.dumps(parse_statement(args.input), indent=2))
+
+    inp = args.input
+    if inp.lower().endswith(".zip"):
+        res = process_zip(inp)
+    else:
+        res = [parse_statement(inp)]
+
+    print(json.dumps(res, indent=2))

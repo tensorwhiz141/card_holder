@@ -56,37 +56,76 @@
 </head>
 <body>
   <div class="container">
-    <div class="summary-card">
-      <h2>Statement Summary</h2>
 
-      
-      <div class="summary-item"><strong>Issuer:</strong> {{ result.issuer or "N/A" }}</div>
-      <div class="summary-item"><strong>Customer Name:</strong> {{ result.customer_name or "N/A" }}</div>
-      <div class="summary-item"><strong>Card Type:</strong> {{ result.card_type or "N/A" }}</div>
-      <div class="summary-item"><strong>Card Last 4 Digits:</strong> {{ result.card_last4 or "N/A" }}</div>
-      <div class="summary-item">
-        <strong>Billing Cycle:</strong>
-        {% if result.billing_cycle %}
-          {{ result.billing_cycle.start }} → {{ result.billing_cycle.end }}
-        {% else %}
-          N/A
-        {% endif %}
-      </div>
-      <div class="summary-item"><strong>Payment Due Date:</strong> {{ result.payment_due_date or "N/A" }}</div>
-      <div class="summary-item"><strong>Total Amount Due:</strong> {{ result.total_amount_due or "N/A" }}</div>
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
 
-      <a href="/" class="btn btn-primary">Upload Another</a>
-      <a href="/download/json" class="btn btn-outline-secondary">Download JSON</a>
-    </div>
+    {% if multiple %}
+      {% for result in results %}
+        <div class="summary-card">
+          <h2>Statement Summary - {{ result.file }}</h2>
+          <div class="summary-item"><strong>Issuer:</strong> {{ result.issuer or "N/A" }}</div>
+          <div class="summary-item"><strong>Customer Name:</strong> {{ result.customer_name or "N/A" }}</div>
+          <div class="summary-item"><strong>Card Type:</strong> {{ result.card_type or "N/A" }}</div>
+          <div class="summary-item"><strong>Card Last 4 Digits:</strong> {{ result.card_last4 or "N/A" }}</div>
+          <div class="summary-item">
+            <strong>Billing Cycle:</strong>
+            {% if result.billing_cycle %}
+              {{ result.billing_cycle.start }} → {{ result.billing_cycle.end }}
+            {% else %}
+              N/A
+            {% endif %}
+          </div>
+          <div class="summary-item"><strong>Payment Due Date:</strong> {{ result.payment_due_date or "N/A" }}</div>
+          <div class="summary-item"><strong>Total Amount Due:</strong> ₹{{ result.total_amount_due or "N/A" }}</div>
 
-    <div class="transactions">
-      <h4>Transactions Preview</h4>
-      {% if result.transactions_preview %}
-        <pre>{{ result.transactions_preview | join("\n") }}</pre>
-      {% else %}
-        <p>No transactions found.</p>
+          <a href="/" class="btn btn-primary">Upload Another</a>
+          <a href="/download/json" class="btn btn-outline-secondary">Download JSON</a>
+        </div>
+
+        <div class="transactions">
+          <h4>Transactions Preview</h4>
+          {% if result.transactions_preview %}
+            <pre>{{ result.transactions_preview | join("\n") }}</pre>
+          {% else %}
+            <p>No transactions found.</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+    {% else %}
+      {% if result %}
+        <div class="summary-card">
+          <h2>Statement Summary</h2>
+          <div class="summary-item"><strong>Issuer:</strong> {{ result.issuer or "N/A" }}</div>
+          <div class="summary-item"><strong>Customer Name:</strong> {{ result.customer_name or "N/A" }}</div>
+          <div class="summary-item"><strong>Card Type:</strong> {{ result.card_type or "N/A" }}</div>
+          <div class="summary-item"><strong>Card Last 4 Digits:</strong> {{ result.card_last4 or "N/A" }}</div>
+          <div class="summary-item">
+            <strong>Billing Cycle:</strong>
+            {% if result.billing_cycle %}
+              {{ result.billing_cycle.start }} → {{ result.billing_cycle.end }}
+            {% else %}
+              N/A
+            {% endif %}
+          </div>
+          <div class="summary-item"><strong>Payment Due Date:</strong> {{ result.payment_due_date or "N/A" }}</div>
+          <div class="summary-item"><strong>Total Amount Due:</strong> ₹{{ result.total_amount_due or "N/A" }}</div>
+
+          <a href="/" class="btn btn-primary">Upload Another</a>
+          <a href="/download/json" class="btn btn-outline-secondary">Download JSON</a>
+        </div>
+
+        <div class="transactions">
+          <h4>Transactions Preview</h4>
+          {% if result.transactions_preview %}
+            <pre>{{ result.transactions_preview | join("\n") }}</pre>
+          {% else %}
+            <p>No transactions found.</p>
+          {% endif %}
+        </div>
       {% endif %}
-    </div>
+    {% endif %}
   </div>
 </body>
 </html>

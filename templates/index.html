@@ -10,20 +10,55 @@
 <body class="bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen flex items-center justify-center p-6">
   <div class="w-full max-w-2xl bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-lg">
     <h1 class="text-2xl font-bold text-slate-800 mb-2">Credit Card Statement Parser</h1>
-    <p class="text-sm text-slate-600 mb-6">Upload a credit card statement (PDF). The parser extracts issuer, card, billing cycle, due date, total due and transactions.</p>
+    <p class="text-sm text-slate-600 mb-6">
+      Upload a credit card statement (PDF). The parser extracts issuer, card, billing cycle, due date, total due and transactions.
+    </p>
 
-    <form action="/upload" method="post" enctype="multipart/form-data" class="space-y-4">
-      <input type="file" name="file" accept=".pdf" required
+    <!-- Main form -->
+    <form id="uploadForm" method="post" enctype="multipart/form-data" class="space-y-4">
+      <input type="file" id="fileInput" name="file" accept=".pdf,.zip" required
              class="block w-full text-sm text-slate-700 border border-slate-200 rounded-lg cursor-pointer bg-slate-50 p-2"/>
+
       <div class="flex gap-3">
-        <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg">Parse PDF</button>
-        <a href="/parse-zip" class="flex-1 text-center bg-slate-100 py-2 rounded-lg text-slate-700">Parse ZIP (API)</a>
+        <button type="submit" id="parsePdfBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg">
+          Parse PDF
+        </button>
+        <button type="button" id="parseZipBtn" class="flex-1 text-center bg-slate-100 py-2 rounded-lg text-slate-700 hover:bg-slate-200">
+          Parse ZIP (API)
+        </button>
       </div>
     </form>
 
     <div class="mt-6 text-xs text-slate-500">
-      <p>Tip: Use the sample PDFs to test. For batch parsing, POST a ZIP file to <code>/parse-zip</code>.</p>
+      <p>Tip: Use the sample PDFs to test. For batch parsing, upload a ZIP to <code>/parse-zip</code>.</p>
     </div>
   </div>
+
+  <script>
+    // Default: parse single PDF via /upload
+    document.getElementById("uploadForm").action = "/upload";
+
+    // When "Parse ZIP" is clicked, post to /parse-zip instead
+    document.getElementById("parseZipBtn").addEventListener("click", function() {
+      const form = document.getElementById("uploadForm");
+      const fileInput = document.getElementById("fileInput");
+
+      if (!fileInput.files.length) {
+        alert("Please select a ZIP file first.");
+        return;
+      }
+
+      const file = fileInput.files[0];
+      if (!file.name.toLowerCase().endsWith(".zip")) {
+        alert("Please upload a .zip file when using 'Parse ZIP'.");
+        return;
+      }
+
+      // Change endpoint and submit
+      form.action = "/parse-zip";
+      form.method = "post";
+      form.submit();
+    });
+  </script>
 </body>
 </html>

@@ -2,19 +2,15 @@ from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-import tempfile, os, io, csv, zipfile, json
-from app.parser_enhanced import parse_statement
+import tempfile, os, io, csv, json
+from app.parser_enhanced import parse_statement, process_zip  # ✅ include process_zip
 
 app = FastAPI(title="Credit Card Statement Parser")
-
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-
 LAST_RESULTS = []
-
-
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -33,7 +29,6 @@ async def upload(request: Request, file: UploadFile = File(...)):
             {"request": request, "error": "Please upload a valid PDF file."}
         )
 
-    
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
@@ -51,48 +46,51 @@ async def upload(request: Request, file: UploadFile = File(...)):
         except Exception:
             pass
 
-    
     LAST_RESULTS.clear()
     LAST_RESULTS.append(result)
 
-    
     return templates.TemplateResponse(
         "result.html",
-        {"request": request, "result": result, "filename": file.filename}
+        {"request": request, "result": result, "filename": file.filename, "multiple": False}
     )
 
 
-@app.post("/parse-zip")
-async def parse_zip(file: UploadFile = File(...)):
+@app.post("/parse-zip", response_class=HTMLResponse)
+async def parse_zip(request: Request, file: UploadFile = File(...)):
     """Upload a ZIP containing multiple PDFs"""
     if not file.filename.lower().endswith(".zip"):
-        return JSONResponse({"error": "Please upload a .zip file containing PDFs"}, status_code=400)
+        return templates.TemplateResponse(
+            "result.html",
+            {"request": request, "error": "Please upload a .zip file containing PDFs"}
+        )
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        zip_path = os.path.join(tmpdir, "uploaded.zip")
-        with open(zip_path, "wb") as f:
-            f.write(await file.read())
+    # ✅ Save uploaded ZIP to temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
 
-        
-        with zipfile.ZipFile(zip_path, "r") as z:
-            z.extractall(tmpdir)
+    try:
+        # ✅ Reuse existing robust ZIP parser
+        results = process_zip(tmp_path)
+    except Exception as e:
+        return templates.TemplateResponse(
+            "result.html",
+            {"request": request, "error": f"Failed to process ZIP: {str(e)}"}
+        )
+    finally:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
 
-        results = []
-        for root, _, files in os.walk(tmpdir):
-            for fname in files:
-                if fname.lower().endswith(".pdf"):
-                    p = os.path.join(root, fname)
-                    try:
-                        parsed = parse_statement(p)
-                        results.append(parsed)
-                    except Exception as e:
-                        results.append({"file": fname, "error": str(e)})
+    LAST_RESULTS.clear()
+    LAST_RESULTS.extend(results)
 
-        
-        LAST_RESULTS.clear()
-        LAST_RESULTS.extend(results)
-
-        return JSONResponse(results)
+    # ✅ Render all results using same template (multiple mode)
+    return templates.TemplateResponse(
+        "result.html",
+        {"request": request, "results": results, "multiple": True}
+    )
 
 
 @app.get("/download/json")
@@ -109,7 +107,6 @@ def download_csv():
     if not LAST_RESULTS:
         return JSONResponse({"error": "No results available"}, status_code=404)
 
-    
     output = io.StringIO()
     writer = csv.writer(output)
     header = [
