@@ -2,7 +2,6 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# system deps for pdf handling (pdfplumber/pdfminer/pillow may require libjpeg/ghostscript/wand)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential libglib2.0-0 libsm6 libxrender1 libxext6 libjpeg62-turbo ghostscript poppler-utils \
  && rm -rf /var/lib/apt/lists/*

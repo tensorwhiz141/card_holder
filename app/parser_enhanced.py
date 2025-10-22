@@ -1,21 +1,11 @@
-#!/usr/bin/env python3
-"""
-FINAL (v4) — Smart Credit Card Statement Parser
------------------------------------------------
-Enhancements:
-✔ Robust date extraction & fallback inference
-✔ Auto-generate billing cycle (1 mo – 1 yr) if missing
-✔ Cycle always ends on payment due date
-✔ Separate cycle ranges per issuer
-✔ Cleaner currency handling
-"""
+
 
 import os, re, json, random
 from datetime import timedelta
 from dateutil import parser as dateparse
 
 try:
-    import fitz  # PyMuPDF
+    import fitz  
     HAS_FITZ = True
 except Exception:
     HAS_FITZ = False
@@ -27,7 +17,7 @@ except Exception:
     HAS_PDFPLUMBER = False
 
 
-# ---------------- CONFIG -----------------
+
 ISSUERS = {
     "HDFC": {"keywords": ["hdfc"], "cycle_days": 30},
     "ICICI": {"keywords": ["icici"], "cycle_days": 35},
@@ -77,7 +67,7 @@ def clean_text(txt):
     txt = re.sub(r"\r", "\n", txt)
     txt = re.sub(r"(\d+)\s*\n\s*(\d{3}\.\d{2})", r"\1,\2", txt)
     txt = re.sub(r"\s+", " ", txt)
-    txt = re.sub(r"₹\s*₹", "₹", txt)  # remove double currency
+    txt = re.sub(r"₹\s*₹", "₹", txt)  
     return txt
 
 
@@ -141,7 +131,7 @@ def find_due_date_near_label(text):
                         return dt.strftime("%Y-%m-%d")
                 except Exception:
                     pass
-    # fallback: first plausible date in document
+    
     for d in RE_DATE.findall(text):
         try:
             dt = dateparse.parse(d, fuzzy=True, dayfirst=True)
@@ -161,7 +151,7 @@ def generate_billing_cycle(issuer, due_date_str):
     except Exception:
         return None
 
-    # Choose a range: either default for issuer ± some randomness
+    
     days = ISSUERS.get(issuer, {}).get("cycle_days", 30)
     days = random.randint(max(20, days - 10), min(365, days + 10))
     start_date = due_date - timedelta(days=days)
@@ -181,7 +171,7 @@ def extract_transactions_simple(text, max_lines=200):
     return lines
 
 
-# ---------------- MAIN -----------------
+
 def parse_statement(path):
     txt = clean_text(extract_text(path))
 
@@ -191,10 +181,10 @@ def parse_statement(path):
     due_date = find_due_date_near_label(txt)
     total_due = find_label_value(txt, ["total amount due", "amount due", "total due", "new balance", "amount payable"])
 
-    # Auto-generate billing cycle ending on due_date
+    
     billing = generate_billing_cycle(issuer, due_date)
 
-    # Card type
+    
     card_type = next((t for t in ["Platinum","Gold","Classic","Signature","World","Visa","Mastercard","Titanium","Infinite"] if t.lower() in txt.lower()), "N/A")
 
     transactions = extract_transactions_simple(txt)
