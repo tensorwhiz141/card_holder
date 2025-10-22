@@ -78,7 +78,7 @@
             {% endif %}
           </div>
           <div class="summary-item"><strong>Payment Due Date:</strong> {{ result.payment_due_date or "N/A" }}</div>
-          <div class="summary-item"><strong>Total Amount Due:</strong> ₹{{ result.total_amount_due or "N/A" }}</div>
+          <div class="summary-item"><strong>Total Amount Due:</strong> {{ result.total_amount_due or "N/A" }}</div>
 
           <a href="/" class="btn btn-primary">Upload Another</a>
           <a href="/download/json" class="btn btn-outline-secondary">Download JSON</a>
@@ -110,7 +110,7 @@
             {% endif %}
           </div>
           <div class="summary-item"><strong>Payment Due Date:</strong> {{ result.payment_due_date or "N/A" }}</div>
-          <div class="summary-item"><strong>Total Amount Due:</strong> ₹{{ result.total_amount_due or "N/A" }}</div>
+          <div class="summary-item"><strong>Total Amount Due:</strong> {{ result.total_amount_due or "N/A" }}</div>
 
           <a href="/" class="btn btn-primary">Upload Another</a>
           <a href="/download/json" class="btn btn-outline-secondary">Download JSON</a>

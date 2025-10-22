@@ -33,7 +33,8 @@ ISSUERS = {
     "KOTAK": {"keywords": ["kotak"], "cycle_days": 60},
 }
 
-RE_AMOUNT = re.compile(r"(₹|Rs\.?|INR|[$€£])?\s*\d[\d,\s\n]*(?:\.\d{2})?", re.IGNORECASE)
+# 🧠 More tolerant patterns
+RE_AMOUNT = re.compile(r"(?:₹|Rs\.?|INR|USD|EUR|[$€£])?\s*\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?", re.IGNORECASE)
 RE_DATE = re.compile(r"\b(?:\d{1,2}[\/\-\.\s]\d{1,2}[\/\-\.\s]\d{2,4}|[A-Za-z]{3,9}\s+\d{1,2},?\s*\d{0,4}|[A-Za-z]{3,9}\s+\d{4})\b")
 RE_LAST4 = re.compile(r"(?:card\s*(?:no\.?|number|ending|ending\s*in|xx+)\s*[:\-]?\s*(?:x{2,}\s*){0,3}(\d{4})|\b(\d{4})\b)", re.IGNORECASE)
 RE_NAME_PATTERNS = [
@@ -101,21 +102,145 @@ def find_last4(text):
             return digits[-4:]
     return None
 
+# --- NEW helper: normalize and format numeric candidate
+def clean_and_format_amount_candidate(raw_text):
+    """
+    Given an amount-like string (may contain ₹, commas, spaces), return numeric float and formatted string.
+    Returns (float_value, formatted_string) or (None, None) if not parseable.
+    """
+    if not raw_text:
+        return None, None
+    # remove currency symbols and spaces (but keep dot and digits)
+    # handle weird double symbols, whitespace, NBSP etc.
+    s = re.sub(r"[^\d\.\-]", "", raw_text)
+    if not s:
+        return None, None
+    # find first numeric pattern (handles integers and decimals)
+    m = re.search(r"-?\d+(?:\.\d+)?", s)
+    if not m:
+        return None, None
+    try:
+        val = float(m.group(0))
+    except Exception:
+        return None, None
+    formatted = f"₹{val:,.2f}"
+    return val, formatted
+
+# ✅ Improved label matching for all “due/balance/amount” cases
 def find_label_value(text, labels):
+    """
+    Robustly find an amount near any of the provided labels.
+    Strategy:
+      - Build an extended set of label phrases
+      - For each occurrence of a label, examine a wide window (left+right)
+      - Collect all RE_AMOUNT matches in that window
+      - Convert candidates to numeric using clean_and_format_amount_candidate
+      - Score candidates by numeric value (prefer larger amounts), then by proximity
+      - Return the best formatted amount (single ₹, two decimals) or None
+    """
+    if not text:
+        return None
+
     lower = text.lower()
-    for lbl in labels:
-        idx = lower.find(lbl)
-        if idx != -1:
-            window = text[idx : idx + 250]
-            m = RE_AMOUNT.search(window)
-            if m:
-                amt = re.sub(r"(₹|Rs\.?|INR|[$€£,])", "", m.group(0), flags=re.IGNORECASE)
-                try:
-                    val = float(re.findall(r"\d+\.\d{2}|\d+", amt)[0])
-                    return f"{val:,.2f}"
-                except Exception:
-                    return f"{amt.strip()}"
-    return None
+
+    extended_labels = set([l.lower() for l in labels] + [
+        "total amount due", "amount due", "total due", "total outstanding",
+        "new balance", "balance due", "statement balance", "outstanding amount",
+        "amount payable", "payment due", "total payment", "amount to be paid",
+        "total bill amount", "amount outstanding", "balance payable",
+        "closing balance", "total dues", "due amount"
+    ])
+
+    # find all positions of these labels in the text
+    label_positions = []
+    for lbl in extended_labels:
+        start = 0
+        while True:
+            idx = lower.find(lbl, start)
+            if idx == -1:
+                break
+            label_positions.append((lbl, idx))
+            start = idx + 1
+
+    if not label_positions:
+        # last resort: search document-wide for obvious large currency-like numbers
+        all_matches = RE_AMOUNT.findall(text)
+        # RE_AMOUNT.findall returns tuples when using groups; better to use finditer
+        candidates = []
+        for m in RE_AMOUNT.finditer(text):
+            raw = m.group(0)
+            val, fmt = clean_and_format_amount_candidate(raw)
+            if val is not None:
+                candidates.append((val, fmt, abs(m.start())))
+        if candidates:
+            # pick largest numeric
+            best = max(candidates, key=lambda x: x[0])
+            return best[1]
+        return None
+
+    # examine windows around each label occurrence
+    candidates = []
+    WINDOW_LEFT = 120  # chars left of label
+    WINDOW_RIGHT = 300  # chars right of label
+
+    for lbl, idx in label_positions:
+        # define window bounds
+        start_idx = max(0, idx - WINDOW_LEFT)
+        end_idx = min(len(text), idx + len(lbl) + WINDOW_RIGHT)
+        window = text[start_idx:end_idx]
+
+        # collect all amount-like matches in window
+        for m in RE_AMOUNT.finditer(window):
+            raw = m.group(0)
+            # compute absolute position in doc
+            abs_pos = start_idx + m.start()
+            val, fmt = clean_and_format_amount_candidate(raw)
+            if val is None:
+                continue
+            # distance from label (smaller is better)
+            distance = abs(abs_pos - idx)
+            candidates.append({
+                "val": val,
+                "fmt": fmt,
+                "distance": distance,
+                "raw": raw,
+                "label": lbl,
+                "pos": abs_pos
+            })
+
+        # also check for numeric tokens immediately after or before label without currency
+        # e.g., "Total Due 2999" or "Total Due : 2,999"
+        # look for plain numbers in small suffix/prefix
+        suffix = text[idx + len(lbl): idx + len(lbl) + 40]
+        for m in re.finditer(r"\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?", suffix):
+            raw = m.group(0)
+            val, fmt = clean_and_format_amount_candidate(raw)
+            if val is not None:
+                abs_pos = idx + len(lbl) + m.start()
+                candidates.append({
+                    "val": val, "fmt": fmt, "distance": abs(abs_pos - idx),
+                    "raw": raw, "label": lbl, "pos": abs_pos
+                })
+        prefix = text[max(0, idx - 40): idx]
+        for m in re.finditer(r"\d{1,3}(?:[,\s]\d{3})*(?:\.\d{1,2})?", prefix):
+            raw = m.group(0)
+            val, fmt = clean_and_format_amount_candidate(raw)
+            if val is not None:
+                abs_pos = idx - 40 + m.start()
+                candidates.append({
+                    "val": val, "fmt": fmt, "distance": abs(abs_pos - idx),
+                    "raw": raw, "label": lbl, "pos": abs_pos
+                })
+
+    if not candidates:
+        return None
+
+    # Score candidates: prefer higher numeric value, then closer distance
+    # Normalize distance to avoid dominating the score
+    max_val = max(c["val"] for c in candidates) if candidates else 1.0
+    best = max(candidates, key=lambda c: (c["val"], -c["distance"]))
+    # best candidate chosen
+    return best["fmt"]
 
 def find_due_date_near_label(text):
     for lbl in ["payment due date", "due date", "pay by", "payment date"]:
