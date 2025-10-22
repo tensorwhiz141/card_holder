@@ -59,7 +59,7 @@
     <div class="summary-card">
       <h2>Statement Summary</h2>
 
-      <!-- <div class="summary-item"><strong>File:</strong> {{ result.file }}</div> -->
+      
       <div class="summary-item"><strong>Issuer:</strong> {{ result.issuer or "N/A" }}</div>
       <div class="summary-item"><strong>Customer Name:</strong> {{ result.customer_name or "N/A" }}</div>
       <div class="summary-item"><strong>Card Type:</strong> {{ result.card_type or "N/A" }}</div>
@@ -73,7 +73,7 @@
         {% endif %}
       </div>
       <div class="summary-item"><strong>Payment Due Date:</strong> {{ result.payment_due_date or "N/A" }}</div>
-      <div class="summary-item"><strong>Total Amount Due:</strong> ₹{{ result.total_amount_due or "N/A" }}</div>
+      <div class="summary-item"><strong>Total Amount Due:</strong> {{ result.total_amount_due or "N/A" }}</div>
 
       <a href="/" class="btn btn-primary">Upload Another</a>
       <a href="/download/json" class="btn btn-outline-secondary">Download JSON</a>

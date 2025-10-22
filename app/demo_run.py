@@ -1,8 +1,4 @@
-#!/usr/bin/env python3
-"""
-Demo runner that applies parser_enhanced.py to all PDFs in sample_pdfs/
-Outputs results.json, results.csv, and results.db (SQLite)
-"""
+
 import os, json, csv, sqlite3
 from parser_enhanced import parse_statement
 
@@ -23,11 +19,11 @@ for fn in sorted(os.listdir(IN_DIR)):
         except Exception as e:
             results.append({"file": fn, "error": str(e)})
 
-# JSON
+
 with open(OUT_JSON, "w", encoding="utf-8") as f:
     json.dump(results, f, indent=2, ensure_ascii=False)
 
-# CSV
+
 keys = ["file","issuer","card_last4","card_type","payment_due_date","total_amount_due"]
 with open(OUT_CSV, "w", newline='', encoding="utf-8") as f:
     writer = csv.writer(f)
@@ -35,7 +31,7 @@ with open(OUT_CSV, "w", newline='', encoding="utf-8") as f:
     for r in results:
         writer.writerow([r.get(k) for k in keys])
 
-# SQLite
+
 conn = sqlite3.connect(OUT_DB)
 c = conn.cursor()
 c.execute("""CREATE TABLE IF NOT EXISTS statements (

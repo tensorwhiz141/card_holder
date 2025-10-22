@@ -7,15 +7,15 @@ from app.parser_enhanced import parse_statement
 
 app = FastAPI(title="Credit Card Statement Parser")
 
-# Mount static assets and templates
+
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-# Simple in-memory cache (for JSON/CSV downloads)
+
 LAST_RESULTS = []
 
 
-# ---------------------- ROUTES ----------------------
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -33,7 +33,7 @@ async def upload(request: Request, file: UploadFile = File(...)):
             {"request": request, "error": "Please upload a valid PDF file."}
         )
 
-    # Save temporarily and parse
+    
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
@@ -51,11 +51,11 @@ async def upload(request: Request, file: UploadFile = File(...)):
         except Exception:
             pass
 
-    # Store result for download endpoints
+    
     LAST_RESULTS.clear()
     LAST_RESULTS.append(result)
 
-    # ✅ FIX: Pass variable as `result` to match result.html
+    
     return templates.TemplateResponse(
         "result.html",
         {"request": request, "result": result, "filename": file.filename}
@@ -73,7 +73,7 @@ async def parse_zip(file: UploadFile = File(...)):
         with open(zip_path, "wb") as f:
             f.write(await file.read())
 
-        # Extract and parse
+        
         with zipfile.ZipFile(zip_path, "r") as z:
             z.extractall(tmpdir)
 
@@ -88,7 +88,7 @@ async def parse_zip(file: UploadFile = File(...)):
                     except Exception as e:
                         results.append({"file": fname, "error": str(e)})
 
-        # Cache results
+        
         LAST_RESULTS.clear()
         LAST_RESULTS.extend(results)
 
@@ -109,7 +109,7 @@ def download_csv():
     if not LAST_RESULTS:
         return JSONResponse({"error": "No results available"}, status_code=404)
 
-    # Build CSV in memory
+    
     output = io.StringIO()
     writer = csv.writer(output)
     header = [

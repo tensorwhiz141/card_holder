@@ -1,4 +1,4 @@
-// Dark mode toggle (saves in localStorage)
+
 const toggle = document.getElementById("toggleTheme");
 const body = document.getElementById("body");
 
