@@ -6,12 +6,14 @@
   <title>Credit Card Statement Parser</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/static/script.css" />
+  <!-- Include SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-gradient-to-br from-slate-50 to-indigo-50 min-h-screen flex items-center justify-center p-6">
   <div class="w-full max-w-2xl bg-white/80 backdrop-blur-md rounded-3xl p-8 shadow-lg">
     <h1 class="text-2xl font-bold text-slate-800 mb-2">Credit Card Statement Parser</h1>
     <p class="text-sm text-slate-600 mb-6">
-      Upload a credit card statement (PDF). The parser extracts issuer, card, billing cycle, due date, total due and transactions.
+      Upload a credit card statement (PDF or ZIP). The parser extracts issuer, card, billing cycle, due date, total due and transactions.
     </p>
 
     <!-- Main form -->
@@ -20,10 +22,10 @@
              class="block w-full text-sm text-slate-700 border border-slate-200 rounded-lg cursor-pointer bg-slate-50 p-2"/>
 
       <div class="flex gap-3">
-        <button type="submit" id="parsePdfBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg">
+        <button type="button" onclick="submitForm('pdf')" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg">
           Parse PDF
         </button>
-        <button type="button" id="parseZipBtn" class="flex-1 text-center bg-slate-100 py-2 rounded-lg text-slate-700 hover:bg-slate-200">
+        <button type="button" onclick="submitForm('zip')" class="flex-1 text-center bg-slate-100 py-2 rounded-lg text-slate-700 hover:bg-slate-200">
           Parse ZIP (API)
         </button>
       </div>
@@ -35,30 +37,42 @@
   </div>
 
   <script>
-    // Default: parse single PDF via /upload
-    document.getElementById("uploadForm").action = "/upload";
+    function extOf(filename) {
+      return filename ? filename.split('.').pop().toLowerCase() : '';
+    }
 
-    // When "Parse ZIP" is clicked, post to /parse-zip instead
-    document.getElementById("parseZipBtn").addEventListener("click", function() {
-      const form = document.getElementById("uploadForm");
-      const fileInput = document.getElementById("fileInput");
+    function submitForm(mode) {
+      const form = document.getElementById('uploadForm');
+      const input = document.getElementById('fileInput');
+      const file = input.files[0];
 
-      if (!fileInput.files.length) {
-        alert("Please select a ZIP file first.");
+      if (!file) {
+        Swal.fire({ icon: 'warning', title: 'No file selected', text: 'Please choose a PDF or ZIP file.' });
         return;
       }
 
-      const file = fileInput.files[0];
-      if (!file.name.toLowerCase().endsWith(".zip")) {
-        alert("Please upload a .zip file when using 'Parse ZIP'.");
+      const ext = extOf(file.name);
+
+      if (mode === 'pdf') {
+        if (ext !== 'pdf') {
+          Swal.fire({ icon: 'error', title: 'Invalid file', text: 'Please select a .pdf file to parse as PDF.' });
+          return;
+        }
+        form.action = '/upload';
+      } else if (mode === 'zip') {
+        if (ext !== 'zip') {
+          Swal.fire({ icon: 'error', title: 'Invalid file', text: 'Please select a .zip file to parse as ZIP.' });
+          return;
+        }
+        form.action = '/parse-zip';
+      } else {
+        Swal.fire({ icon: 'error', title: 'Unknown mode', text: 'Please choose Parse PDF or Parse ZIP.' });
         return;
       }
 
-      // Change endpoint and submit
-      form.action = "/parse-zip";
-      form.method = "post";
+      // Submit normally
       form.submit();
-    });
+    }
   </script>
 </body>
 </html>

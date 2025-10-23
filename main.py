@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, Redirect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import tempfile, os, io, csv, json
-from app.parser_enhanced import parse_statement, process_zip  # ✅ include process_zip
+from app.parser_enhanced import parse_statement, process_zip
 
 app = FastAPI(title="Credit Card Statement Parser")
 
@@ -35,10 +35,18 @@ async def upload(request: Request, file: UploadFile = File(...)):
 
     try:
         result = parse_statement(tmp_path)
+
+        # ✅ Throw error for unsupported banks
+        if result.get("issuer") not in ["HDFC", "ICICI", "SBI", "AXIS", "KOTAK"]:
+            raise ValueError(
+                "Only HDFC, ICICI, SBI, AXIS, and KOTAK bank statements are supported."
+            )
+
     except Exception as e:
+        # ✅ Pass error to template (SweetAlert will show it)
         return templates.TemplateResponse(
             "result.html",
-            {"request": request, "error": f"Failed to parse file: {str(e)}"}
+            {"request": request, "error": str(e), "filename": file.filename}
         )
     finally:
         try:
@@ -64,18 +72,24 @@ async def parse_zip(request: Request, file: UploadFile = File(...)):
             {"request": request, "error": "Please upload a .zip file containing PDFs"}
         )
 
-    # ✅ Save uploaded ZIP to temp file
     with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
         tmp.write(await file.read())
         tmp_path = tmp.name
 
     try:
-        # ✅ Reuse existing robust ZIP parser
         results = process_zip(tmp_path)
+
+        # ✅ Check if any unsupported banks are inside
+        for r in results:
+            if r.get("issuer") not in ["HDFC", "ICICI", "SBI", "AXIS", "KOTAK"]:
+                raise ValueError(
+                    f"Unsupported bank found in ZIP ({r.get('issuer')}). Only HDFC, ICICI, SBI, AXIS, and KOTAK are supported."
+                )
+
     except Exception as e:
         return templates.TemplateResponse(
             "result.html",
-            {"request": request, "error": f"Failed to process ZIP: {str(e)}"}
+            {"request": request, "error": str(e)}
         )
     finally:
         try:
@@ -86,7 +100,6 @@ async def parse_zip(request: Request, file: UploadFile = File(...)):
     LAST_RESULTS.clear()
     LAST_RESULTS.extend(results)
 
-    # ✅ Render all results using same template (multiple mode)
     return templates.TemplateResponse(
         "result.html",
         {"request": request, "results": results, "multiple": True}
@@ -95,7 +108,6 @@ async def parse_zip(request: Request, file: UploadFile = File(...)):
 
 @app.get("/download/json")
 def download_json():
-    """Download last parsed results as JSON"""
     if not LAST_RESULTS:
         return JSONResponse({"error": "No results available"}, status_code=404)
     return JSONResponse(LAST_RESULTS)
@@ -103,15 +115,13 @@ def download_json():
 
 @app.get("/download/csv")
 def download_csv():
-    """Download last parsed results as CSV"""
     if not LAST_RESULTS:
         return JSONResponse({"error": "No results available"}, status_code=404)
 
     output = io.StringIO()
     writer = csv.writer(output)
     header = [
-        "file", "issuer", "customer_name", "card_last4", "card_type",
-        "billing_cycle_start", "billing_cycle_end",
+        "file", "issuer", "customer_name", "card_last4",
         "payment_due_date", "total_amount_due"
     ]
     writer.writerow(header)
@@ -124,9 +134,6 @@ def download_csv():
             r.get("issuer"),
             r.get("customer_name"),
             r.get("card_last4"),
-            r.get("card_type"),
-            bc_start,
-            bc_end,
             r.get("payment_due_date"),
             r.get("total_amount_due")
         ])
@@ -141,11 +148,9 @@ def download_csv():
 
 @app.get("/health")
 def health():
-    """Simple health check"""
     return {"status": "ok"}
 
 
 @app.get("/docs")
 def open_docs():
-    """Redirect FastAPI docs → homepage (friendly UX)"""
     return RedirectResponse(url="/")
