@@ -64,7 +64,7 @@
     {% if multiple %}
       {% for result in results %}
         <div class="summary-card">
-          <h2>Statement Summary - {{ result.file }}</h2>
+          <!-- <h2>Statement Summary - {{ result.file }}</h2> -->
           <div class="summary-item"><strong>Issuer:</strong> {{ result.issuer or "N/A" }}</div>
           <div class="summary-item"><strong>Customer Name:</strong> {{ result.customer_name or "N/A" }}</div>
           <div class="summary-item"><strong>Card Type:</strong> {{ result.card_type or "N/A" }}</div>
